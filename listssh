@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import subprocess
+import re
+from datetime import datetime
+
+DATA_DIR = "/etc/ssh-sni"
+DATA_FILE = os.path.join(DATA_DIR, "users.json")
+
+G = "\033[0;32m"
+C = "\033[0;36m"
+Y = "\033[0;33m"
+W = "\033[0;37m"
+R = "\033[0;31m"
+BG = "\033[1;32m"
+BR = "\033[1;31m"
+BC = "\033[1;36m"
+N = "\033[0m"
+
+def clear():
+    os.system("clear")
+
+def ensure_data():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w") as f:
+            json.dump({}, f)
+
+def load_users():
+    ensure_data()
+    with open(DATA_FILE) as f:
+        return json.load(f)
+
+def vis_len(s):
+    return len(re.sub(r'\033\[[0-9;]*m', '', s))
+
+def cbox(s):
+    for ch in "┌┐└┘├┤┬┴┼─│":
+        s = s.replace(ch, f"{G}{ch}{N}")
+    return s
+
+def border_table(headers, rows, title=None):
+    if not rows:
+        return "[ Tidak ada user SSH ]"
+
+    col_widths = [3, 10, 10, 10]
+    n = len(col_widths)
+    total_w = sum(col_widths) + 3 * n + 1
+
+    result = []
+
+    if title:
+        result.append("┌" + "─" * (total_w - 2) + "┐")
+        space = total_w - vis_len(title) - 4
+        l = space // 2
+        r = space - l
+        result.append("│ " + " " * l + title + " " * r + " │")
+        result.append("├" + "┬".join("─" * (w + 2) for w in col_widths) + "┤")
+    else:
+        result.append("┌" + "┬".join("─" * (w + 2) for w in col_widths) + "┐")
+    hdr = "│ " + " │ ".join(f"{C}{h.ljust(col_widths[i])}{N}" for i, h in enumerate(headers)) + " │"
+    result.append(hdr)
+    result.append("├" + "┼".join("─" * (w + 2) for w in col_widths) + "┤")
+
+    for row in rows:
+        cells = " │ ".join(str(c).ljust(col_widths[i]) for i, c in enumerate(row))
+        result.append("│ " + f"{W}{cells}{N}" + " │")
+
+    result.append("└" + "┴".join("─" * (w + 2) for w in col_widths) + "┘")
+    return cbox("\n".join(result))
+
+def main():
+    clear()
+    users = load_users()
+    if not users:
+        print(border_table(["No", "User", "Pass", "Exp"], [], "SSH USERS"))
+        return
+
+    now = datetime.now().strftime("%Y-%m-%d")
+    headers = ["No", "User", "Pass", "Exp"]
+    rows = []
+    expired_list = []
+
+    for i, (uname, data) in enumerate(sorted(users.items()), 1):
+        pw = data.get("password", "-")
+        exp = data.get("expired", "-")
+        if exp != "never" and exp < now:
+            exp = f"{R}{exp} *{N}"
+            expired_list.append(uname)
+        rows.append([i, uname, pw, exp])
+
+    print(border_table(headers, rows, f"{BC}SSH USERS ({len(rows)}){N}"))
+
+    if expired_list:
+        print()
+        for u in expired_list:
+            print(f"  {R}* User {u} sudah expired!{N}")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import subprocess
+import re
+from datetime import datetime, timedelta
+
+DATA_DIR = "/etc/ssh-sni"
+DATA_FILE = os.path.join(DATA_DIR, "users.json")
+
+G = "\033[0;32m"
+C = "\033[0;36m"
+Y = "\033[0;33m"
+W = "\033[0;37m"
+R = "\033[0;31m"
+BG = "\033[1;32m"
+BR = "\033[1;31m"
+BC = "\033[1;36m"
+N = "\033[0m"
+
+def clear():
+    os.system("clear")
+
+def ensure_data():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w") as f:
+            json.dump({}, f)
+
+def load_users():
+    ensure_data()
+    with open(DATA_FILE) as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(DATA_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+def user_exists(username):
+    return subprocess.call(["id", username], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+
+def add_user(username, password):
+    subprocess.run(["useradd", "-m", "-s", "/bin/bash", username], check=True)
+    subprocess.run(["usermod", "-aG", "sudo", username], check=True)
+    proc = subprocess.Popen(["chpasswd"], stdin=subprocess.PIPE)
+    proc.communicate(f"{username}:{password}".encode())
+    if proc.returncode != 0:
+        raise RuntimeError(f"{BR}gagal set password{N}")
+
+def set_expiry(username, days):
+    exp = datetime.now() + timedelta(days=days)
+    exp_str = exp.strftime("%Y-%m-%d")
+    subprocess.run(["chage", "-E", exp_str, username], check=True)
+    return exp_str
+
+def vis_len(s):
+    return len(re.sub(r'\033\[[0-9;]*m', '', s))
+
+def cbox(s):
+    for ch in "┌┐└┘├┤┬┴┼─│":
+        s = s.replace(ch, f"{G}{ch}{N}")
+    return s
+
+BW = 46
+INNER = BW - 2
+
+def border_title(title):
+    space = BW - vis_len(title) - 4
+    l = space // 2
+    r = space - l
+    return cbox("┌" + "─" * INNER + "┐\n│ " + " " * l + title + " " * r + " │\n└" + "─" * INNER + "┘")
+
+def border_box(lines, title=None):
+    if not lines:
+        return "[ Tidak ada data ]"
+    result = ["┌" + "─" * INNER + "┐"]
+    if title:
+        space = BW - vis_len(title) - 4
+        l = space // 2
+        r = space - l
+        result.append("│ " + " " * l + title + " " * r + " │")
+        result.append("├" + "─" * INNER + "┤")
+    for line in lines:
+        pad = BW - vis_len(line) - 4
+        line_fmt = line
+        if ": " in line and not line.startswith("\033"):
+            label, val = line.split(": ", 1)
+            line_fmt = f"{Y}{label}{N}: {W}{val}{N}"
+        result.append("│ " + line_fmt + " " * pad + " │")
+    result.append("└" + "─" * INNER + "┘")
+    return cbox("\n".join(result))
+
+def main():
+    clear()
+
+    argc = len(sys.argv)
+
+    if argc >= 3:
+        username = sys.argv[1]
+        password = sys.argv[2]
+    elif argc == 2:
+        print(border_title(f"{BC}TAMBAH AKUN SSH{N}"))
+        username = sys.argv[1]
+        password = input(" Password: ")
+    else:
+        print(border_title(f"{BC}TAMBAH AKUN SSH{N}"))
+        username = input(" Username: ").strip()
+        password = input(" Password: ")
+
+    days = None
+    if argc >= 4:
+        try:
+            days = int(sys.argv[3])
+        except ValueError:
+            print(f" Argumen {G}ke-3{N} harus angka ({G}hari{N})")
+            sys.exit(1)
+    else:
+        inp = input(f" Expired (kosong={G}lifetime{N}): ").strip()
+        if inp:
+            try:
+                days = int(inp)
+            except ValueError:
+                print("Harus angka!")
+                sys.exit(1)
+
+    if not username or not password:
+        print("Username dan password wajib diisi")
+        sys.exit(1)
+
+    if user_exists(username):
+        print(border_box([f"User {G}{username}{N} sudah ada"], f"{BR}GAGAL{N}"))
+        sys.exit(1)
+
+    try:
+        add_user(username, password)
+        exp_str = set_expiry(username, days) if days else "never"
+
+        users = load_users()
+        users[username] = {
+            "password": password,
+            "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "expired": exp_str
+        }
+        save_users(users)
+
+        info = [
+            f"Username : {username}",
+            f"Password : {password}",
+        ]
+        if days:
+            info.append(f"Expired  : {exp_str}")
+        else:
+            info.append(f"Expired  : No Exp")
+        info.append(f"Dibuat   : {users[username]['created']}")
+        clear()
+        print(border_box(info, f"{BG}SSH USER ADDED{N}"))
+    except Exception as e:
+        print(border_box([str(e)], f"{BR}GAGAL{N}"))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
