@@ -28,7 +28,6 @@ menu_lines = [
     f"  {W}1.{N} {BG}Add{N} SSH Account",
     f"  {W}2.{N} {C}List{N} SSH Account",
     f"  {W}3.{N} {Y}Delete{N} SSH Account",
-    f"  {W}4.{N} {BC}Info{N} Connection",
     f"  {W}x.{N} {R}Exit{N}",
     "",
 ]
@@ -51,14 +50,13 @@ SCRIPTS = {
     "1": "/usr/local/bin/addssh",
     "2": "/usr/local/bin/listssh",
     "3": "/usr/local/bin/delssh",
-    "4": "/usr/local/bin/info",
 }
 
 while True:
     os.system("clear")
     print(render())
     print()
-    ch = input(f"  {Y}Pilih{N} [{BG}1{N}/{C}2{N}/{Y}3{N}/{BC}4{N}/{R}x{N}]: ").strip().lower()
+    ch = input(f"  {Y}Pilih{N} [{BG}1{N}/{C}2{N}/{Y}3{N}/{R}x{N}]: ").strip().lower()
 
     if ch == "x":
         os.system("clear")
