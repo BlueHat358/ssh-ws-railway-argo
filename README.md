@@ -6,7 +6,7 @@ Perubahan dari repo asli:
 
 ## Cara pakai
 
-1. Buka Cloudflare Zero Trust dashboard → Networks → Tunnels → Create a tunnel (Cloudflared)
+1. Buka Cloudflare dashboard → Networking → Tunnels → Create tunnel (Cloudflared)
 2. Salin token yang diberikan
 3. Di Railway, tambahkan environment variable:
    ```
@@ -22,6 +22,6 @@ Perubahan dari repo asli:
 ## Catatan penting
 
 - Jalur ini **hanya untuk WS**. Jalur SSL/stunnel (raw TLS) tidak bisa lewat Cloudflare Tunnel gratis,
-  jadi tetap diakses langsung via IP:port Railway seperti biasa (tidak ada yang berubah di jalur itu).
+  jadi tetap diakses langsung via generate TCP Proxy di Railway seperti biasa (tidak ada yang berubah di jalur itu).
 - Kalau `CF_TUNNEL_TOKEN` tidak diisi, container tetap jalan normal seperti sebelumnya
   (cloudflared tidak start).
