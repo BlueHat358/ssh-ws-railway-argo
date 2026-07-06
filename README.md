@@ -6,7 +6,7 @@ Perubahan dari repo asli:
 
 ## Cara pakai
 
-1. Buka Cloudflare dashboard → Networking → Tunnels → Create tunnel (Cloudflared)
+1. Buka Cloudflare Zero Trust dashboard → Networks → Tunnels → Create tunnel (Cloudflared)
 2. Salin token yang diberikan
 3. Di Railway, tambahkan environment variable:
    ```
